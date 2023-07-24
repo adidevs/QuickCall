@@ -1,7 +1,6 @@
 import express, { Request, Response, Application } from 'express';
 import {createServer} from 'http';
  import {Socket, Server} from 'socket.io';
-import { ExpressPeerServer } from 'peer';
 import cors from 'cors';
 import bodyParser from 'body-parser';
 import mongoose, { ConnectOptions } from 'mongoose';
@@ -21,12 +20,6 @@ mongoose.connect(process.env.CLUSTER_URL as string, {useNewUrlParser: true} as C
 });
 
 
-const peerServer = ExpressPeerServer(server,{
-    path: '/server', 
-    allow_discovery: true, 
-    corsOptions: {origin: '*'}
-});
-
 const io = new Server(server,{
         cors: {origin: '*'},
         path: '/soc' 
@@ -35,7 +28,6 @@ const io = new Server(server,{
 const users = ["user1", "user2", "user3", "user4", "user5"];
 
 
-app.use('/peer', peerServer);
 app.use(cors({origin: '*'}));
 app.use('/', routes);
 app.use(bodyParser.urlencoded({extended: true}));
@@ -44,14 +36,6 @@ app.get('/', (req: Request, res: Response) => {
     res.send('<h1>Hello Worldddd</h1>');
 });
 
-
-peerServer.on('connection', (client: any) => {
-    console.log('peer connected', client.id);
-});
-
-peerServer.on('disconnect', (client: any) => {
-    console.log('peer disconnected', client.id);  
-});
 
 io.on('connection', (socket: Socket) => {
 

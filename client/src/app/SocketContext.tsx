@@ -69,11 +69,7 @@ const ContextProvider = ({ children }: any) => {
 
       socketRef.current = socket;
 
-      peerInstance.current = new Peer({
-        host: 'localhost',
-        port: 1000,
-        path: '/peer/server'
-      });
+      peerInstance.current = new Peer();
 
       peerInstance.current.on('open', (pid: string) => {
         setPeerId(pid);
