@@ -8,6 +8,7 @@ const http_1 = require("http");
 const socket_io_1 = require("socket.io");
 const peer_1 = require("peer");
 const cors_1 = __importDefault(require("cors"));
+const body_parser_1 = __importDefault(require("body-parser"));
 const mongoose_1 = __importDefault(require("mongoose"));
 require('dotenv').config();
 const routes_1 = __importDefault(require("./routes/routes"));
@@ -34,22 +35,34 @@ const users = ["user1", "user2", "user3", "user4", "user5"];
 app.use('/peer', peerServer);
 app.use((0, cors_1.default)({ origin: '*' }));
 app.use('/', routes_1.default);
+app.use(body_parser_1.default.urlencoded({ extended: true }));
 app.get('/', (req, res) => {
     res.send('<h1>Hello Worldddd</h1>');
 });
 peerServer.on('connection', (client) => {
-    console.log('client connected', client.id);
+    console.log('peer connected', client.id);
 });
 peerServer.on('disconnect', (client) => {
-    console.log('client disconnected', client.id);
+    console.log('peer disconnected', client.id);
 });
 io.on('connection', (socket) => {
-    console.log('a user connected');
-    console.log(socket.id);
-    console.log(socket.handshake.auth);
-    socket.on('chat message', (message) => {
-        console.log(message);
-        io.emit('message', `${socket.id.substring(0, 2)} said ${message}`);
+    console.log('Socket connected');
+    const username = socket.handshake.auth.username;
+    socket.on('joinRoom', (room, peerId) => {
+        console.log("ROOM JOINED ", room, peerId);
+        socket.join(room);
+        socket.broadcast.to(room).emit('new-user', username, peerId);
+        socket.on('send message', (message) => {
+            console.log(message);
+            io.to(room).emit('receive message', message, username, room);
+        });
+        socket.on('leave-room', () => {
+            socket.broadcast.to(room).emit('user-left', username);
+            socket.leave(room);
+        });
+        socket.on('disconnect', () => {
+            socket.broadcast.to(room).emit('user-disconnected', username);
+        });
     });
     //Write a function that will emit a message from one user to specific user
     socket.on('private message', ({ content, to }) => {
