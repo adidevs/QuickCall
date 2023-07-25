@@ -10,8 +10,6 @@ interface ISocketContext {
   peerId: string,
   remotePeerIdValue: string,
   setRemotePeerIdValue: any,
-  name: string,
-  setName: any,
   roomId: string,
   setRoomId: any,
   isConnected: boolean,
@@ -28,12 +26,10 @@ const defaultState: ISocketContext = {
   peerId: '',
   remotePeerIdValue: '',
   roomId: '',
-  name: '',
   isConnected: false,
   connect: () => { },
   disconnect: () => { },
   setRoomId: () => { },
-  setName: () => { },
   setRemotePeerIdValue: () => { },
   sendMessage: () => { },
 }
@@ -48,7 +44,6 @@ const ContextProvider = ({ children }: any) => {
   const socketRef = useRef<any>();
   const [roomId, setRoomId] = useState('');
   const [peerId, setPeerId] = useState<string>('');
-  const [name, setName] = useState<string>('test');
   const [remotePeerIdValue, setRemotePeerIdValue] = useState<string>('');
   const remoteVideoRef: any = useRef<HTMLVideoElement>(null);
   const localVideoRef: any = useRef<HTMLVideoElement>(null);
@@ -60,11 +55,8 @@ const ContextProvider = ({ children }: any) => {
     //if (typeof window !== 'undefined') {
       const Peer = require("peerjs").default;
 
-      const socket = io('http://localhost:1000', {
+      const socket = io(`${process.env.NEXT_PUBLIC_SERVER_URL}`, {
         path: '/soc',
-        auth: {
-          username: name
-        }
       });
 
       socketRef.current = socket;
@@ -89,15 +81,6 @@ const ContextProvider = ({ children }: any) => {
         //   return alert("You are trying to call yourself!");
 
         //console.log(peerInstance.current);
-        if (localVideoRef.current === null) {
-          window.navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-            .then((localStream: MediaStream) => {
-              localVideoRef.current.srcObject = localStream;
-            })
-            .catch((err: any) => {
-              console.log('Failed to get local stream', err);
-            });
-        }
 
         console.log(peerInstance.current)
 
@@ -112,7 +95,7 @@ const ContextProvider = ({ children }: any) => {
 
       peerInstance.current.on('call', (call: MediaConnection) => {
         console.log("call Received");
-        window.navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+        window.navigator.mediaDevices.getUserMedia({ video: true, audio: true })
           .then((localStream: MediaStream) => {
             localVideoRef.current.srcObject = localStream;
             call.answer(localStream);
@@ -136,15 +119,15 @@ const ContextProvider = ({ children }: any) => {
 
     socket.on('user-left', (user: string) => {
       setIsConnected(false);
-      peerInstance.current.disconnect();
-      //window.history.back();
+      peerInstance.current.destroy();
+      window.history.back(); 
     });
 
     return () => {
       socket.disconnect();
     };
   
-  });
+  }, []);
 
   const connect = async () => {
     if (isConnected) return peerInstance.current.reconnect;
@@ -152,10 +135,10 @@ const ContextProvider = ({ children }: any) => {
     socketRef.current.emit('joinRoom', roomId, peerId);
   }
 
-  const disconnect = async () => {
+  const disconnect = () => {
     if (!isConnected) return;
     setIsConnected(false);
-    peerInstance.current.disconnect();
+    //peerInstance.current.disconnect();
     socketRef.current.emit('leave-room', roomId, peerId);
     console.log("Left");
   }
@@ -167,54 +150,9 @@ const ContextProvider = ({ children }: any) => {
   //PeerJS
 
   return (
-    <SocketContext.Provider value={{ name, setName, connect, disconnect, roomId, setRoomId, sendMessage, peerId, remotePeerIdValue, setRemotePeerIdValue, remoteVideoRef, localVideoRef, isConnected }}>
+    <SocketContext.Provider value={{connect, disconnect, roomId, setRoomId, sendMessage, peerId, remotePeerIdValue, setRemotePeerIdValue, remoteVideoRef, localVideoRef, isConnected }}>
       {children}
     </SocketContext.Provider>);
 }
 
 export { ContextProvider, SocketContext };
-
-//     const localVideoRef = useRef();
-
-//     const [localStream, setLocalStream] = useState(null);
-//     const [callAccepted, setCallAccepted] = useState(false);
-//     const [callEnded, setCallEnded] = useState(false);
-//     const [call, setCall] = useState({});
-//     const [name, setName] = useState('');
-//     const [me, setMe] = useState('');
-
-//     useEffect(() => {
-//         navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-//             .then((currentStream) => {
-//                 setLocalStream(currentStream);
-//                 localVideoRef.current.srcObject = currentStream;
-//             })
-//             .catch((err) => {
-//                 console.log('error', err);
-//             });
-
-//             socket.on('me', (id) => {
-//                 setMe(id);
-//             });
-
-//             socket.on('calluser', ({ from, name: callerName, signal }) => {
-//                 setCall({ isReceivedCall: true, from, name: callerName, signal });
-//             });
-//     }, []);
-// }
-
-// const answerCall = () => {
-
-//     setCallAccepted(true);
-
-//     const peer = new Peer({ initiator: false, trickle: false, stream: localStream });
-
-
-// }
-
-// const callUser = () => {
-// }
-
-// const leaveCall = () => {
-
-// }

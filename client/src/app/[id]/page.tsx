@@ -1,44 +1,39 @@
 'use client'
-import React, { useContext, useEffect} from "react";
-import {SocketContext} from '../SocketContext';
-import {useRouter} from "next/navigation";
+import React, { useContext, useEffect } from "react";
+import { SocketContext } from '../SocketContext';
+import { useRouter } from "next/navigation";
 import styles from './Call.module.css';
 
-export default function Call(){
+export default function Call() {
 
 
   const router = useRouter();
-  const {localVideoRef, remoteVideoRef, peerId, sendMessage, connect, disconnect, isConnected} = useContext(SocketContext);
-  
+  const { localVideoRef, remoteVideoRef, peerId, sendMessage, connect, disconnect, isConnected } = useContext(SocketContext);
+
   useEffect(() => {
 
-    if(isConnected)
-      return router.push('/');
+    if (typeof window !== 'undefined') {
 
-      if (typeof window !== 'undefined') {
+      navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+        .then((localStream: MediaStream) => {
+          localVideoRef.current.srcObject = localStream;
+        })
+        .catch((err: any) => {
+          console.log('Failed to get local stream', err);
+        });
+    }
 
-        window.navigator.mediaDevices.getUserMedia({ video: true, audio: false })
-      .then((localStream: MediaStream) => {
-        localVideoRef.current.srcObject = localStream;
-      })
-      .catch((err: any) => {
-        console.log('Failed to get local stream', err);
-      });
-        // Your code that uses the navigator object
-        // For example, you might want to access the user's geolocation or use the MediaDevices API here
-      }
 
-      
     connect();
 
-  });
+  },[connect, localVideoRef]);
 
   const hangUp = () => {
     disconnect();
     router.push('/');
   }
 
-  
+
   return (
     <div className="Home">
       <button onClick={sendMessage}>Send Message</button>
@@ -48,7 +43,7 @@ export default function Call(){
           <video className={styles.video} ref={localVideoRef} id="localVideo" autoPlay playsInline></video>
         </span>
         <span className="Remote">
-          <video className={styles.video}  ref={remoteVideoRef} id="remoteVideo" autoPlay playsInline></video>
+          <video className={styles.video} ref={remoteVideoRef} id="remoteVideo" autoPlay playsInline></video>
         </span>
       </div>
       <p>Peer Id: {peerId}</p>
