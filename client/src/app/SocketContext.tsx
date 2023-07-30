@@ -52,7 +52,6 @@ const ContextProvider = ({ children }: any) => {
 
   useEffect(() => {
 
-    //if (typeof window !== 'undefined') {
       const Peer = require("peerjs").default;
 
       const socket = io(`${process.env.NEXT_PUBLIC_SERVER_URL}`, {
@@ -66,26 +65,11 @@ const ContextProvider = ({ children }: any) => {
       peerInstance.current.on('open', (pid: string) => {
         setPeerId(pid);
         console.log('My peer ID is: ' + pid);
-        // socketRef.current.emit('joinRoom', roomId, pid);
       });
-
-      socket.onAny((event, ...args) => {
-        //console.log(event, args);
-      });
-
-
 
       socket.on('new-user', (user: string, remotepeer: string) => {
-        console.log('REMOTE PEER = ', remotepeer);
-        // if (remotePeerIdValue === peerId)
-        //   return alert("You are trying to call yourself!");
-
-        //console.log(peerInstance.current);
-
-        console.log(peerInstance.current)
 
         const call: MediaConnection = peerInstance.current.call(remotepeer, localVideoRef.current.srcObject);
-        console.log(call)
         call.on('stream', (remoteStream: MediaStream) => {
           remoteVideoRef.current.srcObject = remoteStream;
         }, (err: Error) => {
@@ -94,24 +78,18 @@ const ContextProvider = ({ children }: any) => {
       })
 
       peerInstance.current.on('call', (call: MediaConnection) => {
-        console.log("call Received");
         window.navigator.mediaDevices.getUserMedia({ video: true, audio: true })
           .then((localStream: MediaStream) => {
             localVideoRef.current.srcObject = localStream;
             call.answer(localStream);
             call.on('stream', (remoteStream: MediaStream) => {
               remoteVideoRef.current.srcObject = remoteStream;
-              console.log("remoteStream");
             })
           })
           .catch((err: any) => {
-            console.log('Failed to get local stream', err);
+            alert('Failed to get local stream: ' + err);
           });
       });
-
-    
-
-
 
     socket.on('receive message', (message: string, user: string) => {
       console.log('dfsgdsfgdsf', message, user);
@@ -140,14 +118,11 @@ const ContextProvider = ({ children }: any) => {
     setIsConnected(false);
     //peerInstance.current.disconnect();
     socketRef.current.emit('leave-room', roomId, peerId);
-    console.log("Left");
   }
 
   const sendMessage = async () => {
-    console.log("sendMessage");
     socketRef.current.emit('send message', "Testing 123");
   }
-  //PeerJS
 
   return (
     <SocketContext.Provider value={{connect, disconnect, roomId, setRoomId, sendMessage, peerId, remotePeerIdValue, setRemotePeerIdValue, remoteVideoRef, localVideoRef, isConnected }}>
