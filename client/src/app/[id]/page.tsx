@@ -12,8 +12,6 @@ export default function Call() {
 
   useEffect(() => {
 
-    if (typeof window !== 'undefined') {
-
       navigator.mediaDevices.getUserMedia({ video: true, audio: false })
         .then((localStream: MediaStream) => {
           localVideoRef.current.srcObject = localStream;
@@ -21,12 +19,12 @@ export default function Call() {
         .catch((err: any) => {
           console.log('Failed to get local stream', err);
         });
-    }
 
 
     connect();
 
-  },[connect, localVideoRef]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[]);
 
   const hangUp = () => {
     disconnect();
@@ -35,8 +33,7 @@ export default function Call() {
 
 
   return (
-    <div className="Home">
-      <button onClick={sendMessage}>Send Message</button>
+    <div className="Home"> 
       <h1>Video Call</h1>
       <div >
         <span className="Local">
