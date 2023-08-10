@@ -3,7 +3,6 @@ import React, { createContext, useState, useRef, useEffect, MutableRefObject } f
 import { Socket, io } from 'socket.io-client';
 import { MediaConnection } from 'peerjs';
 
-
 interface ISocketContext {
   localVideoRef: any,
   remoteVideoRef: any,
@@ -42,82 +41,87 @@ const ContextProvider = ({ children }: any) => {
 
   //Socket.io
   const socketRef = useRef<any>();
-  const [roomId, setRoomId] = useState('');
+  const [roomId, setRoomId] = useState<string>('');
   const [peerId, setPeerId] = useState<string>('');
   const [remotePeerIdValue, setRemotePeerIdValue] = useState<string>('');
-  const remoteVideoRef: any = useRef<HTMLVideoElement>(null);
-  const localVideoRef: any = useRef<HTMLVideoElement>(null);
+  const remoteVideoRef: any = useRef();
+  const localVideoRef: any = useRef();
   const peerInstance: MutableRefObject<any> = useRef() as MutableRefObject<any>;
   const [isConnected, setIsConnected] = useState<boolean>(false);
 
   useEffect(() => {
 
-      const Peer = require("peerjs").default;
+    const Peer = require("peerjs").default;
 
-      const socket = io(`${process.env.NEXT_PUBLIC_SERVER_URL}`, {
-        path: '/soc',
-      });
+    const socket = io(`${process.env.NEXT_PUBLIC_SERVER_URL}`, {
+      path: '/soc',
+    });
 
-      socketRef.current = socket;
+    socketRef.current = socket;
 
-      peerInstance.current = new Peer();
+    peerInstance.current = new Peer();
 
-      peerInstance.current.on('open', (pid: string) => {
-        setPeerId(pid);
-        console.log('My peer ID is: ' + pid);
-      });
+    peerInstance.current.on('open', (pid: string) => {
+      setPeerId(pid);
+    });
 
-      socket.on('new-user', (user: string, remotepeer: string) => {
-
-        const call: MediaConnection = peerInstance.current.call(remotepeer, localVideoRef.current.srcObject);
-        call.on('stream', (remoteStream: MediaStream) => {
-          remoteVideoRef.current.srcObject = remoteStream;
-        }, (err: Error) => {
-          alert('Failed to call user: ' + err);
-        })
+    socket.on('new-user', async (user: string, remotepeer: string) => {
+      setIsConnected(true);
+      const localVideo = localVideoRef.current;
+      if(peerInstance.current === null || peerInstance.current === undefined){
+        peerInstance.current = await new Peer();
+      }
+      const call: MediaConnection = peerInstance.current.call(remotepeer, localVideo.srcObject);
+      call.on('stream', (remoteStream: MediaStream) => {
+        remoteVideoRef.current.srcObject = remoteStream;
+        setIsConnected(true);
+      }, (err: Error) => {
+        alert('Failed to call user: ' + err);
       })
+    })
 
-      peerInstance.current.on('call', (call: MediaConnection) => {
-        window.navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-          .then((localStream: MediaStream) => {
-            localVideoRef.current.srcObject = localStream;
-            call.answer(localStream);
-            call.on('stream', (remoteStream: MediaStream) => {
-              remoteVideoRef.current.srcObject = remoteStream;
-            })
+    peerInstance.current.on('call', (call: MediaConnection) => {
+      const localVideo = localVideoRef.current;
+      const localStream = localVideo.srcObject as MediaStream;
+          call.answer(localStream);
+          call.on('stream', (remoteStream: MediaStream) => {
+            remoteVideoRef.current.srcObject = remoteStream;
+            setIsConnected(true);
+          }, (err: Error) => {
+            alert('Failed to call user: ' + err);
           })
-          .catch((err: any) => {
-            alert('Failed to get local stream: ' + err);
-          });
-      });
-
-    socket.on('receive message', (message: string, user: string) => {
-      console.log('dfsgdsfgdsf', message, user);
     });
 
     socket.on('user-left', (user: string) => {
       setIsConnected(false);
       peerInstance.current.destroy();
-      window.history.back(); 
     });
 
     return () => {
       socket.disconnect();
     };
-  
+
   }, []);
 
   const connect = async () => {
-    if (isConnected) return peerInstance.current.reconnect;
-    setIsConnected(true);
     socketRef.current.emit('joinRoom', roomId, peerId);
   }
 
   const disconnect = () => {
     if (!isConnected) return;
     setIsConnected(false);
-    //peerInstance.current.disconnect();
+    const localVideo = localVideoRef.current;
+    const localStream = localVideo.srcObject as MediaStream;
+    const tracks = localStream.getTracks();
+
+    tracks.forEach((track: MediaStreamTrack) => {
+      track.stop();
+    });
+
+    localVideo.srcObject = null;
+    peerInstance.current.destroy();
     socketRef.current.emit('leave-room', roomId, peerId);
+
   }
 
   const sendMessage = async () => {
@@ -125,7 +129,7 @@ const ContextProvider = ({ children }: any) => {
   }
 
   return (
-    <SocketContext.Provider value={{connect, disconnect, roomId, setRoomId, sendMessage, peerId, remotePeerIdValue, setRemotePeerIdValue, remoteVideoRef, localVideoRef, isConnected }}>
+    <SocketContext.Provider value={{ connect, disconnect, roomId, setRoomId, sendMessage, peerId, remotePeerIdValue, setRemotePeerIdValue, remoteVideoRef, localVideoRef, isConnected }}>
       {children}
     </SocketContext.Provider>);
 }

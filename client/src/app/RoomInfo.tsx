@@ -49,7 +49,7 @@ export default function RoomInfo() {
                 onChange={e => {setRoomId(e.target.value)}}
                 placeholder='Enter a code or link' />
             <button onClick={joinRoom}>Join</button>
-            <button onClick={copyId}>Share ID</button>
+            <button onClick={copyId} disabled={roomId === ""? true : false}>Share ID</button>
         </React.Fragment>
     )
 }
