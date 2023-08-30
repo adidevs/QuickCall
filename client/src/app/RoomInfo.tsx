@@ -1,13 +1,14 @@
 'use client'
-import React, { useContext } from "react"
-import { SocketContext } from './SocketContext';
+import React, {useState, useEffect } from "react"
 import { useRouter } from "next/navigation";
 import axios from "axios";
+import styles from './page.module.css'
+import { BsShareFill } from 'react-icons/bs';
 
 export default function RoomInfo() {
 
     const router = useRouter();
-    const { roomId, setRoomId } = useContext(SocketContext);  
+    const [ roomId, setRoomId ]= useState(''); 
 
     const joinRoom = async () => {
  
@@ -15,10 +16,11 @@ export default function RoomInfo() {
             .then((res) => {
                 if(!res.data) return alert('ROOM NOT FOUND, CREATE NEW ID!');
                 setRoomId(res.data);
+
                 return router.push(`/${roomId}`);
-            })
+            }) 
             .catch((err: Error) => {
-                return alert(`SERVER ERROR! ${err}`)
+                return alert(`Check your connection OR try again later!`)
             });
     }
 
@@ -31,25 +33,26 @@ export default function RoomInfo() {
                 return router.push(`/${roomId}`);
             })
             .catch((err: Error) => {
-                return alert(`SERVER ERROR! ${err}`)
+                return alert(`Check your connection OR try again later!`)
         });
     }
 
-    const copyId = () => {
+    const copyId = () => { 
         navigator.clipboard.writeText(roomId);
     }
 
 
     return (
-        <React.Fragment>
-            <button onClick={newRoom}>Create New Room</button>
+        <div className={styles.actions}>
+            <button className={styles.createBtn} onClick={newRoom}>New Room</button>
             <input
+                className={styles.input}
                 type="text"
                 value={roomId}
                 onChange={e => {setRoomId(e.target.value)}}
-                placeholder='Enter a code or link' />
-            <button onClick={joinRoom}>Join</button>
-            <button onClick={copyId} disabled={roomId === ""? true : false}>Share ID</button>
-        </React.Fragment>
+                placeholder='Enter a code' />
+            <button className={styles.joinBtn} onClick={joinRoom}>Join</button>
+            <button className={styles.shareBtn} onClick={copyId} disabled={roomId === ""? true : false}><BsShareFill/></button>      
+        </div>
     )
 }
