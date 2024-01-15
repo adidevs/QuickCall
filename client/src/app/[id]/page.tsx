@@ -49,14 +49,14 @@ export default function Call({ params }: { params: { id: string } }) {
         router.push('/');
       }
     };
-    // roomExists();
+    roomExists();
 
-    // //Get username
-    // var enteredUserName = prompt('Enter your name');
-    // while (enteredUserName === null || enteredUserName === '') {
-    //   enteredUserName = prompt('Enter your name');
-    // }
-    const myName = "enteredUserName;"
+    //Get username
+    var enteredUserName = prompt('Enter your name');
+    while (enteredUserName === null || enteredUserName === '') {
+      enteredUserName = prompt('Enter your name');
+    }
+    const myName = enteredUserName;
     setThisUserName(myName);
 
     //Establish connection
