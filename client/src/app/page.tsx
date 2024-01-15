@@ -1,4 +1,3 @@
-'use client'
 import styles from './page.module.css'
 import RoomInfo from './RoomInfo';
 import Image from 'next/image';

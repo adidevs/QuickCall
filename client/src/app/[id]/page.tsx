@@ -9,6 +9,7 @@ import axios from "axios";
 import { BsFillCameraVideoFill, BsFillCameraVideoOffFill, BsFillMicMuteFill, BsFillMicFill, BsShareFill } from 'react-icons/bs';
 import { ImPhoneHangUp } from 'react-icons/im';
 import { MdPresentToAll } from 'react-icons/md';
+import ChatBox from "./ChatBox";
 
 
 export default function Call({ params }: { params: { id: string } }) {
@@ -18,20 +19,21 @@ export default function Call({ params }: { params: { id: string } }) {
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setisVideoOff] = useState(false);
   const [isSharingScreen, setIsSharingScreen] = useState(false);
-  const remoteVideoRef: any = useRef();
+  const [isChatOpen, setIsChatOpen] = useState(false);
   const localVideoRef: any = useRef();
   const socketRef = useRef<any>();
   const [peerId, setPeerId] = useState<string>('');
   const peerInstance: MutableRefObject<any> = useRef() as MutableRefObject<any>;
-  const [isConnected, setIsConnected] = useState<boolean>(false);
   const [showPopup, setShowPopup] = useState(false);
-
+  const remoteAVStream = new Map<string, MediaStream>();
+  const [thisUserName, setThisUserName] = useState<string | null>('');
 
   useEffect(() => {
     const roomExists = async () => {
       try {
         const res = await axios.get(`${process.env.NEXT_PUBLIC_SERVER_URL}/validate/${roomId}`);
-        if (!res.data) {
+        if (res.status === 404) {
+          alert('Invalid room ID!');
           router.push('/');
         } else {
           navigator.mediaDevices.getUserMedia({ video: true, audio: true })
@@ -39,21 +41,31 @@ export default function Call({ params }: { params: { id: string } }) {
               localVideoRef.current.srcObject = localStream;
             })
             .catch((err: any) => {
-              alert('Failed to get local stream' + err);
+              alert('Failed to access Media!' + err);
             });
         }
       } catch (err) {
         router.push('/');
       }
     };
-
     roomExists();
+
+    //Get username
+    var enteredUserName = prompt('Enter your name');
+    while (enteredUserName === null || enteredUserName === '') {
+      enteredUserName = prompt('Enter your name');
+    }
+    const myName = enteredUserName;
+    setThisUserName(myName);
 
     //Establish connection
     const Peer = require("peerjs").default;
 
     const socket = io(`${process.env.NEXT_PUBLIC_SERVER_URL}`, {
       path: '/soc',
+      auth: {
+        token: myName
+      }
     });
     socketRef.current = socket;
 
@@ -61,11 +73,7 @@ export default function Call({ params }: { params: { id: string } }) {
 
     peerInstance.current.on('open', (pid: string) => {
       setPeerId(() => { return pid });
-      socket.emit('joinRoom', roomId, pid);
-    });
-
-    socket.on('invalid-room', () => {
-      alert('Invalid room ID!');
+      socket.emit('joinRoom', roomId, pid, myName);
     });
 
     socket.on('room-full', () => {
@@ -73,40 +81,132 @@ export default function Call({ params }: { params: { id: string } }) {
       router.push('/');
     });
 
-    socket.on('new-user', async (user: string, remotepeer: string) => {
-      setIsConnected(true);
-      if (peerInstance.current === null || peerInstance.current === undefined) {
-        peerInstance.current = new Peer();
-        while (peerInstance.current.id === null || peerInstance.current.id === undefined) {
-          await new Promise(r => setTimeout(r, 500));
+
+    const remoteVideoElements = new Map<string, HTMLDivElement>();
+
+    // Function to handle a new user joining
+    const handleNewUser = async (newUserName: string, remotepeer: string) => {
+      console.log('new user joined');
+      console.log(remotepeer);
+      const localVideo = localVideoRef.current!;
+      const metaData = { username: myName };
+      const options = { metadata: { "username": `${myName}` } };
+      const call: MediaConnection = peerInstance.current.call(remotepeer, localVideo.srcObject as MediaStream, options);
+
+      call.on('stream', (remoteStream) => {
+        remoteAVStream.set(remotepeer, remoteStream);
+
+        if (!remoteVideoElements.has(remotepeer)) {
+          console.log('creating new video element');
+          const newUser = createRemoteVideoElement(remotepeer, remoteStream, newUserName);
+          remoteVideoElements.set(remotepeer, newUser);
+          appendVideoElement(newUser);
         }
+      });
+
+      call.on('close', () => {
+        handleUserLeft(remotepeer);
+      });
+    };
+
+    // Function to handle a user leaving
+    const handleUserLeft = (user: string) => {
+      const video = remoteVideoElements.get(user);
+
+      if (video) {
+        video.parentNode!.removeChild(video);
+        remoteVideoElements.delete(user);
       }
-      const localVideo = localVideoRef.current;
-      const call: MediaConnection = peerInstance.current.call(remotepeer, localVideo.srcObject);
-      call.on('stream', (remoteStream: MediaStream) => {
-        remoteVideoRef.current.srcObject = remoteStream;
-        setIsConnected(true);
-      }, (err: Error) => {
-        alert('Failed to call user: ' + err);
-      })
-    })
 
-    peerInstance.current.on('call', (call: MediaConnection) => {
-      const localVideo = localVideoRef.current;
-      const localStream = localVideo.srcObject as MediaStream;
-      call.answer(localStream);
-      call.on('stream', (remoteStream: MediaStream) => {
-        remoteVideoRef.current.srcObject = remoteStream;
-        setIsConnected(true);
-      }, (err: Error) => {
-        alert('Failed to call user: ' + err);
-      })
+      remoteAVStream.delete(user);
+
+    };
+
+    // Function to create a remote video element
+    const createRemoteVideoElement = (userId: string, stream: MediaStream, newUserName: string) => {
+
+      const newUser = document.createElement('div');
+
+      const newUserNameElement = document.createElement('p');
+      newUserNameElement.className = styles.userName;
+      newUserNameElement.innerHTML = newUserName;
+
+      const newUserVideo = document.createElement('video');
+      newUserVideo.className = styles.userVideo;
+      newUserVideo.srcObject = stream;
+      newUserVideo.id = userId;
+      newUserVideo.autoplay = true;
+      newUserVideo.playsInline = true;
+      newUserVideo.controls = false;
+
+      newUser.appendChild(newUserVideo);
+      newUser.appendChild(newUserNameElement);
+
+      return newUser;
+    };
+
+    // Function to append a video element to the videos container
+    const appendVideoElement = (videoElement: HTMLDivElement) => {
+      console.log('appending new video element');
+      const videos = document.getElementById('videos');
+      videos?.appendChild(videoElement);
+    };
+
+    // Event handler for new-user socket event
+    socket.on('new-user', async (user: string, remotepeer: string) => {
+      console.log('new user event');
+      await handleNewUser(user, remotepeer);
     });
 
+    //Event handler for message socket event
+    socket.on('incoming-message', (user: string, message: string) => {
+      const newMessage = document.createElement('div');
+      newMessage.className = styles.chatBoxMessage;
+
+      const sender = document.createElement('p');
+      sender.className = styles.chatBoxMessageSender;
+      sender.innerHTML = user;
+
+      const text = document.createElement('p');
+      text.className = styles.chatBoxMessageText;
+      text.innerHTML = message;
+
+      newMessage.appendChild(sender);
+      newMessage.appendChild(text);
+
+      const chatBoxBody = document.getElementById('chatBoxBody');
+      chatBoxBody?.appendChild(newMessage);
+
+    });
+
+    // Event handler for user-left socket event
     socket.on('user-left', (user: string) => {
-      setIsConnected(false);
+      handleUserLeft(user);
     });
 
+    // Event handler for incoming calls
+    peerInstance.current.on('call', (call: MediaConnection) => {
+      const localVideo = localVideoRef.current!;
+      const localStream = localVideo.srcObject as MediaStream;
+
+      call.answer(localStream);
+
+
+      call.on('stream', (remoteStream): void => {
+        const incomingUserName = call.metadata.username;
+        remoteAVStream.set(call.peer, remoteStream);
+
+        if (!remoteVideoElements.has(call.peer)) {
+          const newUser = createRemoteVideoElement(call.peer, remoteStream, incomingUserName);
+          remoteVideoElements.set(call.peer, newUser);
+          appendVideoElement(newUser);
+        }
+      });
+
+      call.on('close', () => {
+        handleUserLeft(call.peer);
+      });
+    });
     //Cleanup
     window.onbeforeunload = () => {
       const localVideo = localVideoRef.current;
@@ -123,7 +223,6 @@ export default function Call({ params }: { params: { id: string } }) {
   }, []);
 
   const disconnect = () => {
-    setIsConnected(false);
     const localVideo = localVideoRef.current;
     const localStream = localVideo.srcObject as MediaStream;
     const tracks = localStream.getTracks();
@@ -233,6 +332,16 @@ export default function Call({ params }: { params: { id: string } }) {
     setTimeout(() => setShowPopup(false), 2000);
   }
 
+  const toggleChat = () => {
+    setIsChatOpen(!isChatOpen);
+  }
+
+
+  const sendMessage = () => {
+    const message = (document.getElementById('messageInput') as HTMLInputElement).value;
+    socketRef.current.emit('message', thisUserName, message);
+  }
+
   return (
     <main>
       <Head>
@@ -240,10 +349,11 @@ export default function Call({ params }: { params: { id: string } }) {
       </Head>
       <div className={styles.page}>
         <h2 className={styles.roomId}>{roomId}</h2>
-        <div className={styles.videoContainer}>
-          <video className={styles.localVideo} ref={localVideoRef} id="localVideo" autoPlay playsInline></video>
-          {true &&
-            <video className={styles.remoteVideo} ref={remoteVideoRef} id="remoteVideo" autoPlay playsInline></video>}
+        <div className={styles.userContainer} id="videos">
+          <div className={styles.user}>
+            <video className={styles.userVideo} ref={localVideoRef} autoPlay playsInline muted></video>
+            <p className={styles.userName}>{thisUserName}(Me)</p>
+          </div>
         </div>
         <div className={styles.optionsContainer}>
 
@@ -255,10 +365,16 @@ export default function Call({ params }: { params: { id: string } }) {
             {(isMuted) ? <BsFillMicMuteFill /> : <BsFillMicFill />}
           </button>
           <button className={styles.mediaBtnOff} onClick={hangUp}><ImPhoneHangUp /></button>
-          <button className={styles.shareBtn} onClick={shareScreen} disabled={(isSharingScreen) ? true : false}><MdPresentToAll/></button>
+          <button className={styles.shareBtn} onClick={shareScreen} disabled={(isSharingScreen) ? true : false}><MdPresentToAll /></button>
           <button className={styles.shareBtn} onClick={copyRoomId}><BsShareFill /></button>
           {showPopup && <div className={styles.popup}>Room ID Copied!</div>}
+          <button className={styles.chatBtn} onClick={toggleChat}>Chat</button>
         </div>
+        <ChatBox name={thisUserName}
+          socket={socketRef.current}
+          toggleChat={toggleChat}
+          isChatOpen={isChatOpen}
+          sendMessage={sendMessage} />
       </div>
     </main>
   )

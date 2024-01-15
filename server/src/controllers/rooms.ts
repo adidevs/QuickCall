@@ -1,12 +1,31 @@
 import { Request, Response } from "express";
 import Room from "../models/roomSchema";
-import { v4 as uuidv4, validate as uuidValidate } from "uuid";
+import { validate as uuidValidate } from 'uuid';
 
 export const createRoom = async (req: Request, res: Response) => {
 
+    const generateId = () => {
+
+        const alphabet = 'abcdefghijklmnopqrstuvwxyz';
+        const alphabetArray = alphabet.split('');
+        const alphabetLength = alphabetArray.length;
+        const idLength = 12;
+        let id = '';
+    
+        for (let i = 0; i < idLength; i++) {
+            if (i === 3 || i === 8) {
+                id += '-';
+            } else {
+                const randomIndex = Math.floor(Math.random() * alphabetLength);
+                id += alphabetArray[randomIndex];
+            }
+        }
+       return id;
+    }
+
     //create unique room id using uuid and add to database
     const room = {
-        roomId: uuidv4()
+        roomId: generateId()
     }
     console.log(room.roomId);
     await Room.insertMany(room)
@@ -25,15 +44,16 @@ export const validateRoom = async (req: Request, res: Response) => {
         roomId: req.params.id
     };
 
-    if(!uuidValidate(room.roomId))
-       return res.status(400).json("INVALID_ROOM_ID");
-
     await Room.findOne(room)
         .then((data) => {
-            return res.status(200).json(data?.roomId);  
+            console.log(data);
+            if(data)
+            return res.status(200).json(data.roomId);
+            else
+            return res.status(404).json("INVALID_ROOM_ID"); 
         })
         .catch((err) => {
-            return res.status(500).json(err.message);
+            return res.status(500).json("INVALID_ROOM_ID");
         });
     //client will then establish connection with socket.io and create room
 };
