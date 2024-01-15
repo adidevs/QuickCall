@@ -43,11 +43,9 @@ io.on('connection', (socket: Socket) => {
         if (numClients >= 40) {
             socket.emit('room-full');
         } else {
-            console.log("ROOM JOINED ", room, peerId);
             socket.join(room);
             socket.broadcast.to(room).emit('new-user', newUserName, peerId);
             socket.on('message', (sender: string, message: string) => {
-                console.log(message);
                 io.to(room).emit("incoming-message", sender, message);
             })
             socket.on('leave-room', () => {
@@ -62,9 +60,6 @@ io.on('connection', (socket: Socket) => {
         }
     });
 
-    socket.on('disconnect', () => {
-        console.log('user disconnected');
-    })
 })
 
 

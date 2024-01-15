@@ -27,7 +27,6 @@ export const createRoom = async (req: Request, res: Response) => {
     const room = {
         roomId: generateId()
     }
-    console.log(room.roomId);
     await Room.insertMany(room)
         .then((data) => {
             return res.status(200).json(data[0].roomId);
@@ -46,7 +45,6 @@ export const validateRoom = async (req: Request, res: Response) => {
 
     await Room.findOne(room)
         .then((data) => {
-            console.log(data);
             if(data)
             return res.status(200).json(data.roomId);
             else

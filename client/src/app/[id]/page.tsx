@@ -3,10 +3,11 @@ import React, { useEffect, useState, useRef, MutableRefObject, use } from "react
 import { useRouter } from "next/navigation";
 import Head from "next/head"
 import styles from './Call.module.css';
+import ChatStyles from './ChatBox.module.css';
 import { MediaConnection } from "peerjs";
 import { io } from "socket.io-client";
 import axios from "axios";
-import { BsFillCameraVideoFill, BsFillCameraVideoOffFill, BsFillMicMuteFill, BsFillMicFill, BsShareFill } from 'react-icons/bs';
+import { BsFillCameraVideoFill, BsFillCameraVideoOffFill, BsFillMicMuteFill, BsFillMicFill, BsShareFill, BsChatLeft } from 'react-icons/bs';
 import { ImPhoneHangUp } from 'react-icons/im';
 import { MdPresentToAll } from 'react-icons/md';
 import ChatBox from "./ChatBox";
@@ -48,14 +49,14 @@ export default function Call({ params }: { params: { id: string } }) {
         router.push('/');
       }
     };
-    roomExists();
+    // roomExists();
 
-    //Get username
-    var enteredUserName = prompt('Enter your name');
-    while (enteredUserName === null || enteredUserName === '') {
-      enteredUserName = prompt('Enter your name');
-    }
-    const myName = enteredUserName;
+    // //Get username
+    // var enteredUserName = prompt('Enter your name');
+    // while (enteredUserName === null || enteredUserName === '') {
+    //   enteredUserName = prompt('Enter your name');
+    // }
+    const myName = "enteredUserName;"
     setThisUserName(myName);
 
     //Establish connection
@@ -86,8 +87,6 @@ export default function Call({ params }: { params: { id: string } }) {
 
     // Function to handle a new user joining
     const handleNewUser = async (newUserName: string, remotepeer: string) => {
-      console.log('new user joined');
-      console.log(remotepeer);
       const localVideo = localVideoRef.current!;
       const metaData = { username: myName };
       const options = { metadata: { "username": `${myName}` } };
@@ -97,7 +96,6 @@ export default function Call({ params }: { params: { id: string } }) {
         remoteAVStream.set(remotepeer, remoteStream);
 
         if (!remoteVideoElements.has(remotepeer)) {
-          console.log('creating new video element');
           const newUser = createRemoteVideoElement(remotepeer, remoteStream, newUserName);
           remoteVideoElements.set(remotepeer, newUser);
           appendVideoElement(newUser);
@@ -147,28 +145,26 @@ export default function Call({ params }: { params: { id: string } }) {
 
     // Function to append a video element to the videos container
     const appendVideoElement = (videoElement: HTMLDivElement) => {
-      console.log('appending new video element');
       const videos = document.getElementById('videos');
       videos?.appendChild(videoElement);
     };
 
     // Event handler for new-user socket event
     socket.on('new-user', async (user: string, remotepeer: string) => {
-      console.log('new user event');
       await handleNewUser(user, remotepeer);
     });
 
     //Event handler for message socket event
     socket.on('incoming-message', (user: string, message: string) => {
       const newMessage = document.createElement('div');
-      newMessage.className = styles.chatBoxMessage;
+      newMessage.className = ChatStyles.chatBoxMessage;
 
       const sender = document.createElement('p');
-      sender.className = styles.chatBoxMessageSender;
+      sender.className = ChatStyles.chatBoxMessageSender;
       sender.innerHTML = user;
 
       const text = document.createElement('p');
-      text.className = styles.chatBoxMessageText;
+      text.className = ChatStyles.chatBoxMessageText;
       text.innerHTML = message;
 
       newMessage.appendChild(sender);
@@ -209,13 +205,6 @@ export default function Call({ params }: { params: { id: string } }) {
     });
     //Cleanup
     window.onbeforeunload = () => {
-      const localVideo = localVideoRef.current;
-      const localStream = localVideo.srcObject as MediaStream;
-      const tracks = localStream.getTracks();
-
-      tracks.forEach((track: MediaStreamTrack) => {
-        track.stop();
-      });
       disconnect();
     }
 
@@ -368,10 +357,9 @@ export default function Call({ params }: { params: { id: string } }) {
           <button className={styles.shareBtn} onClick={shareScreen} disabled={(isSharingScreen) ? true : false}><MdPresentToAll /></button>
           <button className={styles.shareBtn} onClick={copyRoomId}><BsShareFill /></button>
           {showPopup && <div className={styles.popup}>Room ID Copied!</div>}
-          <button className={styles.chatBtn} onClick={toggleChat}>Chat</button>
+          <button className={styles.chatBtn} onClick={toggleChat}><BsChatLeft/></button>
         </div>
-        <ChatBox name={thisUserName}
-          socket={socketRef.current}
+        <ChatBox 
           toggleChat={toggleChat}
           isChatOpen={isChatOpen}
           sendMessage={sendMessage} />

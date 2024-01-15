@@ -1,7 +1,7 @@
 import React, { ReactPropTypes, useState } from 'react';
 import styles from './ChatBox.module.css';
 
-const ChatBox = ({ name, socket, toggleChat, isChatOpen, sendMessage }: any) => {
+const ChatBox = ({ toggleChat, isChatOpen, sendMessage }: any) => {
 
     return (
         <div className={(isChatOpen) ? styles.showChatBox : styles.hideChatBox} id="chatBox">
