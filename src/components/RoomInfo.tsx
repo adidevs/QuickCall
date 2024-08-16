@@ -1,11 +1,10 @@
 "use client";
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { BsShareFill } from "react-icons/bs";
 import { toast } from "react-toastify";
 import { useSession } from "next-auth/react";
 import { createMeeting, joinMeeting } from "@/utils/meetingHelper";
-import { Call, useStreamVideoClient } from "@stream-io/video-react-sdk";
+import {  useStreamVideoClient } from "@stream-io/video-react-sdk";
 import {
   DropdownMenu,
   DropdownMenuContent,
